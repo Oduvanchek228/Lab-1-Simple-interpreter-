@@ -26,9 +26,28 @@ def interpreter(string):
                 raise ValueError
 
             tokens.append(float(number) if points else int(number))
-        elif sym in '+-*/()':
+
+        elif sym.isalpha():
+            start = i
+
+            while i < len(string) and (string[i].isalpha()):
+                i += 1
+
+            name = string[start:i]
+
+            if name != 'pow':
+                raise ValueError
+
+            tokens.append(name)
+
+        elif string[i:i + 2] == '>>':
+            tokens.append(string[i:i + 2])
+            i += 2
+
+        elif sym in '+-*/(),':
             tokens.append(sym)
             i += 1
+
         else:
             raise ValueError
 
@@ -80,7 +99,7 @@ def interpreter(string):
 
         return result
 
-    # Обработка чисел, скобок и унарных плюса/минуса
+    # Обработка чисел, скобок, унарных плюса/минуса и функции pow() (Вариант 7)
     def factor():
         token = tokens[pos]
 
@@ -94,18 +113,46 @@ def interpreter(string):
 
         if token == '(':
             consume('(')
-            result = expression()
+            result = shift_expression()
             consume(')')
             return result
+
+        if token == 'pow':
+            consume('pow')
+            consume('(')
+            x = shift_expression()
+            consume(',')
+            y = shift_expression()
+            consume(')')
+
+            return x ** y
 
         if isinstance(token, (int, float)):
             return consume()
         raise ValueError  # Если не выполнилось ни одно из условий
 
+    # Обработка побитового сдвига вправо (Вариант 7)
+    def shift_expression():
+        result = expression()
+
+        while tokens[pos] == '>>':
+            consume('>>')
+            right = expression()
+
+            if type(result) is not int or type(right) is not int:
+                raise TypeError
+
+            if right < 0:
+                raise ValueError
+
+            result >>= right
+
+        return result
+
     if tokens[pos] is None:
         raise ValueError
 
-    result = expression()
+    result = shift_expression()
 
     if tokens[pos] is not None:
         raise ValueError
@@ -114,8 +161,10 @@ def interpreter(string):
 
 
 try:
-    print(interpreter(''))  # В качестве аргумента принимается строка с арифметическим выражением
+    print(interpreter('64 >> 2 + 1'))  # В качестве аргумента принимается строка с арифметическим выражением
 except ValueError:
     print('Некорректное арифметическое выражение.')
+except TypeError:
+    print('Побитовый сдвиг вправо (>>) возможен только с целыми числами.')  # Это правила Python, я ничего не выдумал
 except ZeroDivisionError:
     print('Деление на ноль недопустимо.')
